@@ -7,7 +7,16 @@
 # ***************************************************************************************
 
 
+# ＜概要＞
+# - ループを使ってモデルのレイヤーを柔軟に変更できるようにする
 
+
+# ＜参考＞
+# Python Keras Tuner Documentation
+# - https://keras-team.github.io/keras-tuner/
+
+
+# ＜目次＞
 # 0 準備
 # 1 データ作成
 # 2 モデル構築
@@ -26,16 +35,19 @@ library(tensorflow)
 library(kerastuneR)
 
 # 仮想環境の選択
-use_condaenv("C:/Users/Owner/Anaconda3/envs/r-reticulate", required = TRUE)
+use_condaenv("C:/Users/Owner/Anaconda3/envs/r-reticulate")
 py_config()
 
 
 # 1 データ作成 ----------------------------------------------------------------------------
 
 # データ作成
+# --- 訓練データ
 x_data <- matrix(data = runif(500,0,1),nrow = 50,ncol = 5)
 y_data <-  ifelse(runif(50,0,1) > 0.6, 1L,0L) %>% as.matrix()
 
+# データ作成
+# --- 検証データ
 x_data2 <- matrix(data = runif(500,0,1),nrow = 50,ncol = 5)
 y_data2 <-  ifelse(runif(50,0,1) > 0.6, 1L,0L) %>% as.matrix()
 
@@ -43,13 +55,13 @@ y_data2 <-  ifelse(runif(50,0,1) > 0.6, 1L,0L) %>% as.matrix()
 # 2 モデル構築 -----------------------------------------------------------------------------
 
 # モデル構築
-build_model <- function(hp) {
+build_model = function(hp) {
 
   model = keras_model_sequential()
   model %>% layer_dense(units = hp$Int('units',
                                      min_value = 32,
                                      max_value = 512,
-                                     step=  32), input_shape = ncol(x_data),
+                                     step=  32),input_shape = ncol(x_data),
                         activation =  'relu') %>%
     layer_dense(units = 1, activation = 'softmax') %>%
     compile(
@@ -65,13 +77,14 @@ build_model <- function(hp) {
 # 3 チューニング --------------------------------------------------------------------------------
 
 # Tuner作成
-tuner <-
-  RandomSearch(build_model,
-               objective = 'val_accuracy',
-               max_trials = 5,
-               executions_per_trial = 3,
-               directory = 'my_dir',
-               project_name = 'helloworld')
+# --- インスタンス化
+tuner = RandomSearch(
+    build_model,
+    objective = 'val_accuracy',
+    max_trials = 5,
+    executions_per_trial = 3,
+    directory = 'my_dir',
+    project_name = 'helloworld')
 
 tuner %>% search_summary()
 
@@ -82,11 +95,19 @@ tuner %>% fit_tuner(x_data,y_data,
 
 # 4 結果検証 -------------------------------------------------------------------------
 
-
-result = kerastuneR::plot_tuner(tuner)
-# the list will show the plot and the data.frame of tuning results
+# チューナーの表示
+# ---
+result = tuner %>% plot_tuner(height = 500, width = 500)
 result
+# the list will show the plot and the data.frame of tuning results
 
+# サマリー表示
+tuner %>% results_summary(num_trials = 5)
 
-best_5_models = tuner %>% get_best_models(5)
-best_5_models[[1]] %>% plot_keras_model()
+# 上位モデルの選択
+best_5_models = tuner %>% get_best_models(num_models = 5)
+best_5_models
+
+# モデル構造の表示
+best_5_models[[1]] %>%
+  plot_keras_model(show_shapes = TRUE, dpi = 96)
